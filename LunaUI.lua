@@ -1,1002 +1,1307 @@
 --[[
-    LunaUI - Eine moderne Luau UI Bibliothek
-    Alles in einer Datei für einfache Verwendung
-    
-    Autor: Assistant
-    Version: 1.0.0
+    Lumina Library
+    A modern UI library for Roblox with enhanced animations and sleek design
+    Created by T3 Chat, 2025
 ]]
 
-local LunaUI = {}
-
--- Services
-local TweenService = game:GetService("TweenService")
+local Lumina = {}
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
 
--- Library Info
-LunaUI.Version = "1.0.0"
-
--- ========================================
--- THEME SYSTEM
--- ========================================
-
-local Theme = {
-    Current = "Dark",
-    
-    Dark = {
-        Background = Color3.fromRGB(15, 15, 25),
-        BackgroundSecondary = Color3.fromRGB(20, 20, 35),
-        BackgroundTertiary = Color3.fromRGB(25, 25, 40),
-        Primary = Color3.fromRGB(120, 119, 255),
-        Secondary = Color3.fromRGB(255, 119, 120),
-        Success = Color3.fromRGB(119, 255, 120),
-        Warning = Color3.fromRGB(255, 200, 100),
-        Error = Color3.fromRGB(255, 100, 100),
-        TextPrimary = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(200, 200, 200),
-        TextTertiary = Color3.fromRGB(150, 150, 150),
-        Border = Color3.fromRGB(40, 40, 60),
-        Shadow = Color3.fromRGB(0, 0, 0)
-    },
-    
-    Light = {
-        Background = Color3.fromRGB(250, 250, 255),
-        BackgroundSecondary = Color3.fromRGB(245, 245, 250),
-        BackgroundTertiary = Color3.fromRGB(240, 240, 245),
-        Primary = Color3.fromRGB(100, 99, 255),
-        Secondary = Color3.fromRGB(255, 99, 100),
-        Success = Color3.fromRGB(99, 255, 100),
-        Warning = Color3.fromRGB(255, 180, 80),
-        Error = Color3.fromRGB(255, 80, 80),
-        TextPrimary = Color3.fromRGB(20, 20, 20),
-        TextSecondary = Color3.fromRGB(60, 60, 60),
-        TextTertiary = Color3.fromRGB(100, 100, 100),
-        Border = Color3.fromRGB(220, 220, 230),
-        Shadow = Color3.fromRGB(0, 0, 0)
-    }
+-- Configuration
+Lumina.Config = {
+    WindowPadding = Vector2.new(15, 15),
+    WindowCornerRadius = UDim.new(0, 6),
+    WindowBlur = true,
+    PrimaryColor = Color3.fromRGB(60, 120, 255),
+    SecondaryColor = Color3.fromRGB(32, 32, 38),
+    BackgroundColor = Color3.fromRGB(22, 22, 26),
+    TextColor = Color3.fromRGB(240, 240, 240),
+    Font = Enum.Font.GothamMedium,
+    SaveConfig = true,
+    ConfigFolder = "LuminaConfig",
+    AnimationDuration = 0.3,
+    AnimationEasingStyle = Enum.EasingStyle.Quint,
+    NotificationPosition = UDim2.new(1, -25, 1, -25),
+    NotificationAnchor = Vector2.new(1, 1)
 }
 
-function Theme:GetColor(colorName)
-    return self[self.Current][colorName] or Color3.fromRGB(255, 0, 255)
-end
-
-function Theme:CreateShadow(size, transparency)
-    local shadow = Instance.new("Frame")
-    shadow.Name = "Shadow"
-    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.BackgroundTransparency = transparency or 0.8
-    shadow.BorderSizePixel = 0
-    shadow.Size = UDim2.new(1, size * 2, 1, size * 2)
-    shadow.Position = UDim2.fromOffset(-size, -size)
-    shadow.ZIndex = -1
+-- Create UI Container
+function Lumina:Init()
+    if self.Initialized then return end
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, size)
-    corner.Parent = shadow
+    -- Create main UI container
+    local LuminaUI = Instance.new("ScreenGui")
+    LuminaUI.Name = "LuminaUI"
+    LuminaUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    LuminaUI.ResetOnSpawn = false
     
-    return shadow
-end
-
--- ========================================
--- ANIMATOR SYSTEM
--- ========================================
-
-local Animator = {
-    ActiveTweens = {}
-}
-
-function Animator:Tween(object, tweenInfo, properties, callback)
-    if self.ActiveTweens[object] then
-        self.ActiveTweens[object]:Cancel()
+    -- Handle parent based on environment
+    if RunService:IsStudio() then
+        LuminaUI.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    else
+        pcall(function()
+            LuminaUI.Parent = CoreGui
+        end)
+        
+        if not LuminaUI.Parent then
+            LuminaUI.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+        end
     end
     
-    local tween = TweenService:Create(object, tweenInfo, properties)
-    self.ActiveTweens[object] = tween
+    -- Create notification container
+    local NotificationContainer = Instance.new("Frame")
+    NotificationContainer.Name = "NotificationContainer"
+    NotificationContainer.BackgroundTransparency = 1
+    NotificationContainer.Size = UDim2.new(0, 300, 1, 0)
+    NotificationContainer.Position = UDim2.new(1, -310, 0, 0)
+    NotificationContainer.AnchorPoint = Vector2.new(0, 0)
+    NotificationContainer.Parent = LuminaUI
     
+    -- Create notification layout
+    local NotificationLayout = Instance.new("UIListLayout")
+    NotificationLayout.Name = "NotificationLayout"
+    NotificationLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    NotificationLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    NotificationLayout.Padding = UDim.new(0, 10)
+    NotificationLayout.Parent = NotificationContainer
+    
+    -- Create windows container
+    local WindowsContainer = Instance.new("Frame")
+    WindowsContainer.Name = "WindowsContainer"
+    WindowsContainer.BackgroundTransparency = 1
+    WindowsContainer.Size = UDim2.new(1, 0, 1, 0)
+    WindowsContainer.Parent = LuminaUI
+    
+    -- Store references
+    self.GUI = LuminaUI
+    self.NotificationContainer = NotificationContainer
+    self.WindowsContainer = WindowsContainer
+    self.Windows = {}
+    self.Flags = {}
+    self.ActiveNotifications = {}
+    self.Initialized = true
+    
+    return self
+end
+
+-- Create a notification
+function Lumina:Notify(options)
+    if not self.Initialized then
+        self:Init()
+    end
+    
+    -- Default options
+    options = options or {}
+    local title = options.Title or "Notification"
+    local content = options.Content or "This is a notification"
+    local icon = options.Icon or "rbxassetid://10723424505" -- Default info icon
+    local duration = options.Duration or 5
+    local theme = options.Theme or "Default" -- Default, Success, Warning, Error
+    local callback = options.Callback
+    
+    -- Set theme colors
+    local themeColors = {
+        Default = Color3.fromRGB(60, 120, 255),
+        Success = Color3.fromRGB(72, 220, 105),
+        Warning = Color3.fromRGB(255, 178, 62),
+        Error = Color3.fromRGB(255, 75, 75)
+    }
+    
+    local themeColor = themeColors[theme] or themeColors.Default
+    
+    -- Create notification frame
+    local notification = Instance.new("Frame")
+    notification.Name = "Notification_" .. tostring(#self.ActiveNotifications + 1)
+    notification.Size = UDim2.new(0, 300, 0, 0) -- Start with 0 height, will animate
+    notification.BackgroundColor3 = self.Config.BackgroundColor
+    notification.BorderSizePixel = 0
+    notification.AnchorPoint = Vector2.new(0.5, 1)
+    notification.Position = UDim2.new(0.5, 0, 1, 0)
+    notification.ClipsDescendants = true
+    notification.BackgroundTransparency = 0.1
+    notification.Parent = self.NotificationContainer
+    
+    -- Add corner radius
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = self.Config.WindowCornerRadius
+    corner.Parent = notification
+    
+    -- Create shadow
+    local shadow = Instance.new("ImageLabel")
+    shadow.Name = "Shadow"
+    shadow.BackgroundTransparency = 1
+    shadow.Image = "rbxassetid://6014237321"
+    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.ImageTransparency = 0.5
+    shadow.Size = UDim2.new(1, 30, 1, 30)
+    shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    shadow.ZIndex = -1
+    shadow.Parent = notification
+    
+    -- Create accent bar
+    local accentBar = Instance.new("Frame")
+    accentBar.Name = "AccentBar"
+    accentBar.Size = UDim2.new(0, 5, 1, 0)
+    accentBar.BackgroundColor3 = themeColor
+    accentBar.BorderSizePixel = 0
+    accentBar.Position = UDim2.new(0, 0, 0, 0)
+    accentBar.Parent = notification
+    
+    -- Create icon
+    local iconFrame = Instance.new("ImageLabel")
+    iconFrame.Name = "Icon"
+    iconFrame.Size = UDim2.new(0, 30, 0, 30)
+    iconFrame.BackgroundTransparency = 1
+    iconFrame.Position = UDim2.new(0, 15, 0, 15)
+    iconFrame.Image = icon
+    iconFrame.Parent = notification
+    
+    -- Create title
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, -60, 0, 20)
+    titleLabel.Position = UDim2.new(0, 55, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Font = self.Config.Font
+    titleLabel.TextSize = 16
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextColor3 = self.Config.TextColor
+    titleLabel.Text = title
+    titleLabel.Parent = notification
+    
+    -- Create content
+    local contentLabel = Instance.new("TextLabel")
+    contentLabel.Name = "Content"
+    contentLabel.Size = UDim2.new(1, -70, 0, 0) -- Will be resized based on text
+    contentLabel.Position = UDim2.new(0, 55, 0, 35)
+    contentLabel.BackgroundTransparency = 1
+    contentLabel.Font = Enum.Font.Gotham
+    contentLabel.TextSize = 14
+    contentLabel.TextXAlignment = Enum.TextXAlignment.Left
+    contentLabel.TextYAlignment = Enum.TextYAlignment.Top
+    contentLabel.TextWrapped = true
+    contentLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    contentLabel.Text = content
+    contentLabel.Parent = notification
+    
+    -- Create close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -35, 0, 5)
+    closeButton.BackgroundTransparency = 1
+    closeButton.Text = "×"
+    closeButton.TextSize = 20
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+    closeButton.Parent = notification
+    
+    -- Calculate content height based on text
+    local textSize = TextService:GetTextSize(
+        content,
+        14,
+        Enum.Font.Gotham,
+        Vector2.new(230, 1000)
+    )
+    
+    local notificationHeight = math.max(60, textSize.Y + 50) -- Minimum 60px height
+    contentLabel.Size = UDim2.new(1, -70, 0, textSize.Y)
+    
+    -- Set notification height
+    notification.Size = UDim2.new(0, 300, 0, notificationHeight)
+    
+    -- Add to active notifications
+    table.insert(self.ActiveNotifications, notification)
+    
+    -- Animate in
+    notification.BackgroundTransparency = 1
+    accentBar.BackgroundTransparency = 1
+    iconFrame.ImageTransparency = 1
+    titleLabel.TextTransparency = 1
+    contentLabel.TextTransparency = 1
+    closeButton.TextTransparency = 1
+    shadow.ImageTransparency = 1
+    
+    -- Create tween
+    local tweenInfo = TweenInfo.new(
+        self.Config.AnimationDuration,
+        self.Config.AnimationEasingStyle,
+        Enum.EasingDirection.Out
+    )
+    
+    local fadeInProperties = {
+        BackgroundTransparency = 0.1,
+    }
+    
+    local fadeInPropertiesAccent = {
+        BackgroundTransparency = 0,
+    }
+    
+    local fadeInPropertiesImage = {
+        ImageTransparency = 0,
+    }
+    
+    local fadeInPropertiesShadow = {
+        ImageTransparency = 0.5,
+    }
+    
+    local fadeInPropertiesText = {
+        TextTransparency = 0,
+    }
+    
+    -- Play tweens
+    TweenService:Create(notification, tweenInfo, fadeInProperties):Play()
+    TweenService:Create(accentBar, tweenInfo, fadeInPropertiesAccent):Play()
+    TweenService:Create(iconFrame, tweenInfo, fadeInPropertiesImage):Play()
+    TweenService:Create(shadow, tweenInfo, fadeInPropertiesShadow):Play()
+    TweenService:Create(titleLabel, tweenInfo, fadeInPropertiesText):Play()
+    TweenService:Create(contentLabel, tweenInfo, fadeInPropertiesText):Play()
+    TweenService:Create(closeButton, tweenInfo, fadeInPropertiesText):Play()
+    
+    -- Close button click
+    closeButton.MouseButton1Click:Connect(function()
+        self:CloseNotification(notification)
+        if callback then
+            callback()
+        end
+    end)
+    
+    -- Auto close after duration
+    if duration and duration > 0 then
+        task.delay(duration, function()
+            if notification and notification.Parent then
+                self:CloseNotification(notification)
+            end
+        end)
+    end
+    
+    -- Progress bar for duration
+    if duration and duration > 0 then
+        local progressBar = Instance.new("Frame")
+        progressBar.Name = "ProgressBar"
+        progressBar.Size = UDim2.new(1, 0, 0, 3)
+        progressBar.Position = UDim2.new(0, 0, 1, -3)
+        progressBar.BackgroundColor3 = themeColor
+        progressBar.BorderSizePixel = 0
+        progressBar.Parent = notification
+        
+        -- Animate progress bar
+        local progressTween = TweenService:Create(
+            progressBar,
+            TweenInfo.new(duration, Enum.EasingStyle.Linear),
+            {Size = UDim2.new(0, 0, 0, 3)}
+        )
+        progressTween:Play()
+    end
+    
+    -- Hover effects
+    notification.MouseEnter:Connect(function()
+        TweenService:Create(
+            notification,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundTransparency = 0}
+        ):Play()
+    end)
+    
+    notification.MouseLeave:Connect(function()
+        TweenService:Create(
+            notification,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundTransparency = 0.1}
+        ):Play()
+    end)
+    
+    return notification
+end
+
+-- Close notification
+function Lumina:CloseNotification(notification)
+    -- Create tween
+    local tweenInfo = TweenInfo.new(
+        self.Config.AnimationDuration,
+        self.Config.AnimationEasingStyle,
+        Enum.EasingDirection.Out
+    )
+    
+    local fadeOutProperties = {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1.5, 0, 1, 0)
+    }
+    
+    -- Play tween
+    local tween = TweenService:Create(notification, tweenInfo, fadeOutProperties)
     tween:Play()
     
-    if callback then
-        tween.Completed:Connect(function()
-            callback()
-            self.ActiveTweens[object] = nil
-        end)
-    else
-        tween.Completed:Connect(function()
-            self.ActiveTweens[object] = nil
-        end)
-    end
-    
-    return tween
-end
-
-function Animator:FadeIn(object, duration, callback)
-    local originalTransparency = object.BackgroundTransparency
-    object.BackgroundTransparency = 1
-    
-    return self:Tween(object, 
-        TweenInfo.new(duration or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {BackgroundTransparency = originalTransparency}, 
-        callback
-    )
-end
-
-function Animator:FadeOut(object, duration, callback)
-    return self:Tween(object,
-        TweenInfo.new(duration or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-        {BackgroundTransparency = 1},
-        callback
-    )
-end
-
-function Animator:SlideIn(object, direction, duration, callback)
-    local startPosition = object.Position
-    local offsetPosition
-    
-    if direction == "Left" then
-        offsetPosition = UDim2.new(startPosition.X.Scale - 1, startPosition.X.Offset, startPosition.Y.Scale, startPosition.Y.Offset)
-    elseif direction == "Right" then
-        offsetPosition = UDim2.new(startPosition.X.Scale + 1, startPosition.X.Offset, startPosition.Y.Scale, startPosition.Y.Offset)
-    elseif direction == "Top" then
-        offsetPosition = UDim2.new(startPosition.X.Scale, startPosition.X.Offset, startPosition.Y.Scale - 1, startPosition.Y.Offset)
-    else
-        offsetPosition = UDim2.new(startPosition.X.Scale, startPosition.X.Offset, startPosition.Y.Scale + 1, startPosition.Y.Offset)
-    end
-    
-    object.Position = offsetPosition
-    
-    return self:Tween(object,
-        TweenInfo.new(duration or 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        {Position = startPosition},
-        callback
-    )
-end
-
-function Animator:Scale(object, targetSize, duration, callback)
-    return self:Tween(object,
-        TweenInfo.new(duration or 0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
-        {Size = targetSize},
-        callback
-    )
-end
-
-function Animator:Bounce(object, intensity, duration, callback)
-    local originalSize = object.Size
-    local bounceSize = UDim2.new(
-        originalSize.X.Scale * (1 + (intensity or 0.1)),
-        originalSize.X.Offset,
-        originalSize.Y.Scale * (1 + (intensity or 0.1)),
-        originalSize.Y.Offset
-    )
-    
-    return self:Tween(object,
-        TweenInfo.new(duration or 0.6, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out),
-        {Size = bounceSize},
-        function()
-            self:Tween(object, TweenInfo.new(0.3), {Size = originalSize}, callback)
+    -- Fade out all children
+    for _, child in pairs(notification:GetChildren()) do
+        if child:IsA("Frame") then
+            TweenService:Create(child, tweenInfo, {BackgroundTransparency = 1}):Play()
+        elseif child:IsA("TextLabel") or child:IsA("TextButton") then
+            TweenService:Create(child, tweenInfo, {TextTransparency = 1}):Play()
+        elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+            TweenService:Create(child, tweenInfo, {ImageTransparency = 1}):Play()
         end
-    )
-end
-
--- ========================================
--- BUTTON COMPONENT
--- ========================================
-
-local Button = {}
-Button.__index = Button
-
-function Button.new(config)
-    local self = setmetatable({}, Button)
-    
-    self.Text = config.Text or "Button"
-    self.Size = config.Size or UDim2.fromOffset(120, 35)
-    self.Position = config.Position or UDim2.fromOffset(0, 0)
-    self.Style = config.Style or "Primary"
-    self.Callback = config.Callback or function() end
-    self.Parent = config.Parent
-    
-    self:CreateButton()
-    return self
-end
-
-function Button:CreateButton()
-    self.Frame = Instance.new("TextButton")
-    self.Frame.Name = "LunaButton"
-    self.Frame.Size = self.Size
-    self.Frame.Position = self.Position
-    self.Frame.BackgroundColor3 = Theme:GetColor(self.Style)
-    self.Frame.BorderSizePixel = 0
-    self.Frame.Text = self.Text
-    self.Frame.TextColor3 = Color3.fromRGB(255, 255, 255)
-    self.Frame.TextSize = 14
-    self.Frame.Font = Enum.Font.GothamSemibold
-    self.Frame.AutoButtonColor = false
-    
-    if self.Parent then
-        self.Frame.Parent = self.Parent
     end
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = self.Frame
-    
-    local shadow = Theme:CreateShadow(8, 0.6)
-    shadow.Parent = self.Frame
-    
-    self:SetupInteractions()
-end
-
-function Button:SetupInteractions()
-    self.Frame.MouseEnter:Connect(function()
-        Animator:Scale(self.Frame, UDim2.new(
-            self.Size.X.Scale,
-            self.Size.X.Offset + 4,
-            self.Size.Y.Scale,
-            self.Size.Y.Offset + 2
-        ), 0.1)
+    -- Remove notification after tween
+    tween.Completed:Connect(function()
+        notification:Destroy()
         
-        Animator:Tween(self.Frame, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.new(
-                Theme:GetColor(self.Style).R * 1.1,
-                Theme:GetColor(self.Style).G * 1.1,
-                Theme:GetColor(self.Style).B * 1.1
-            )
-        })
-    end)
-    
-    self.Frame.MouseLeave:Connect(function()
-        Animator:Scale(self.Frame, self.Size, 0.1)
-        Animator:Tween(self.Frame, TweenInfo.new(0.2), {
-            BackgroundColor3 = Theme:GetColor(self.Style)
-        })
-    end)
-    
-    self.Frame.MouseButton1Down:Connect(function()
-        Animator:Scale(self.Frame, UDim2.new(
-            self.Size.X.Scale,
-            self.Size.X.Offset - 2,
-            self.Size.Y.Scale,
-            self.Size.Y.Offset - 1
-        ), 0.05)
-    end)
-    
-    self.Frame.MouseButton1Up:Connect(function()
-        Animator:Scale(self.Frame, self.Size, 0.1)
-        Animator:Bounce(self.Frame, 0.05, 0.3)
-    end)
-    
-    self.Frame.MouseButton1Click:Connect(function()
-        self.Callback()
-    end)
-end
-
--- ========================================
--- SLIDER COMPONENT
--- ========================================
-
-local Slider = {}
-Slider.__index = Slider
-
-function Slider.new(config)
-    local self = setmetatable({}, Slider)
-    
-    self.Min = config.Min or 0
-    self.Max = config.Max or 100
-    self.Value = config.Value or 50
-    self.Size = config.Size or UDim2.fromOffset(200, 35)
-    self.Position = config.Position or UDim2.fromOffset(0, 0)
-    self.Callback = config.Callback or function() end
-    self.Parent = config.Parent
-    self.IsDragging = false
-    
-    self:CreateSlider()
-    return self
-end
-
-function Slider:CreateSlider()
-    self.Frame = Instance.new("Frame")
-    self.Frame.Name = "LunaSlider"
-    self.Frame.Size = self.Size
-    self.Frame.Position = self.Position
-    self.Frame.BackgroundTransparency = 1
-    
-    if self.Parent then
-        self.Frame.Parent = self.Parent
-    end
-    
-    -- Track
-    self.Track = Instance.new("Frame")
-    self.Track.Size = UDim2.new(1, -20, 0, 4)
-    self.Track.Position = UDim2.new(0, 10, 0.5, -2)
-    self.Track.BackgroundColor3 = Theme:GetColor("BackgroundTertiary")
-    self.Track.BorderSizePixel = 0
-    self.Track.Parent = self.Frame
-    
-    local trackCorner = Instance.new("UICorner")
-    trackCorner.CornerRadius = UDim.new(0, 2)
-    trackCorner.Parent = self.Track
-    
-    -- Fill
-    self.Fill = Instance.new("Frame")
-    self.Fill.Size = UDim2.fromScale(self:GetPercentage(), 1)
-    self.Fill.BackgroundColor3 = Theme:GetColor("Primary")
-    self.Fill.BorderSizePixel = 0
-    self.Fill.Parent = self.Track
-    
-    local fillCorner = Instance.new("UICorner")
-    fillCorner.CornerRadius = UDim.new(0, 2)
-    fillCorner.Parent = self.Fill
-    
-    -- Handle
-    self.Handle = Instance.new("Frame")
-    self.Handle.Size = UDim2.fromOffset(18, 18)
-    self.Handle.Position = UDim2.new(self:GetPercentage(), -9, 0.5, -9)
-    self.Handle.BackgroundColor3 = Theme:GetColor("Primary")
-    self.Handle.BorderSizePixel = 0
-    self.Handle.Parent = self.Frame
-    
-    local handleCorner = Instance.new("UICorner")
-    handleCorner.CornerRadius = UDim.new(0, 9)
-    handleCorner.Parent = self.Handle
-    
-    -- Value Label
-    self.ValueLabel = Instance.new("TextLabel")
-    self.ValueLabel.Size = UDim2.fromOffset(50, 20)
-    self.ValueLabel.Position = UDim2.new(1, -55, 0, 0)
-    self.ValueLabel.BackgroundColor3 = Theme:GetColor("BackgroundSecondary")
-    self.ValueLabel.BackgroundTransparency = 0.2
-    self.ValueLabel.BorderSizePixel = 0
-    self.ValueLabel.Text = tostring(self.Value)
-    self.ValueLabel.TextColor3 = Theme:GetColor("TextPrimary")
-    self.ValueLabel.TextSize = 12
-    self.ValueLabel.Font = Enum.Font.Gotham
-    self.ValueLabel.Parent = self.Frame
-    
-    local labelCorner = Instance.new("UICorner")
-    labelCorner.CornerRadius = UDim.new(0, 4)
-    labelCorner.Parent = self.ValueLabel
-    
-    self:SetupInteractions()
-end
-
-function Slider:GetPercentage()
-    return (self.Value - self.Min) / (self.Max - self.Min)
-end
-
-function Slider:SetupInteractions()
-    local function updateSlider(input)
-        local relativeX = math.clamp((input.Position.X - self.Track.AbsolutePosition.X) / self.Track.AbsoluteSize.X, 0, 1)
-        self.Value = math.floor(self.Min + (self.Max - self.Min) * relativeX)
-        
-        local percentage = self:GetPercentage()
-        
-        Animator:Tween(self.Fill, TweenInfo.new(0.1), {Size = UDim2.fromScale(percentage, 1)})
-        Animator:Tween(self.Handle, TweenInfo.new(0.1), {Position = UDim2.new(percentage, -9, 0.5, -9)})
-        
-        self.ValueLabel.Text = tostring(self.Value)
-        self.Callback(self.Value)
-    end
-    
-    self.Handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            self.IsDragging = true
-            Animator:Scale(self.Handle, UDim2.fromOffset(22, 22), 0.1)
-        end
-    end)
-    
-    self.Track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            updateSlider(input)
-            self.IsDragging = true
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if self.IsDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            updateSlider(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 and self.IsDragging then
-            self.IsDragging = false
-            Animator:Scale(self.Handle, UDim2.fromOffset(18, 18), 0.1)
-        end
-    end)
-end
-
--- ========================================
--- TEXTBOX COMPONENT
--- ========================================
-
-local TextBox = {}
-TextBox.__index = TextBox
-
-function TextBox.new(config)
-    local self = setmetatable({}, TextBox)
-    
-    self.PlaceholderText = config.PlaceholderText or "Enter text..."
-    self.Text = config.Text or ""
-    self.Size = config.Size or UDim2.fromOffset(200, 35)
-    self.Position = config.Position or UDim2.fromOffset(0, 0)
-    self.Callback = config.Callback or function() end
-    self.Parent = config.Parent
-    self.IsFocused = false
-    
-    self:CreateTextBox()
-    return self
-end
-
-function TextBox:CreateTextBox()
-    self.Frame = Instance.new("Frame")
-    self.Frame.Name = "LunaTextBox"
-    self.Frame.Size = self.Size
-    self.Frame.Position = self.Position
-    self.Frame.BackgroundColor3 = Theme:GetColor("BackgroundTertiary")
-    self.Frame.BackgroundTransparency = 0.3
-    self.Frame.BorderSizePixel = 0
-    
-    if self.Parent then
-        self.Frame.Parent = self.Parent
-    end
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = self.Frame
-    
-    self.Stroke = Instance.new("UIStroke")
-    self.Stroke.Color = Theme:GetColor("Border")
-    self.Stroke.Thickness = 1
-    self.Stroke.Parent = self.Frame
-    
-    self.TextInput = Instance.new("TextBox")
-    self.TextInput.Size = UDim2.new(1, -20, 1, 0)
-    self.TextInput.Position = UDim2.fromOffset(10, 0)
-    self.TextInput.BackgroundTransparency = 1
-    self.TextInput.Text = self.Text
-    self.TextInput.PlaceholderText = self.PlaceholderText
-    self.TextInput.TextColor3 = Theme:GetColor("TextPrimary")
-    self.TextInput.PlaceholderColor3 = Theme:GetColor("TextTertiary")
-    self.TextInput.TextSize = 14
-    self.TextInput.Font = Enum.Font.Gotham
-    self.TextInput.TextXAlignment = Enum.TextXAlignment.Left
-    self.TextInput.TextYAlignment = Enum.TextYAlignment.Center
-    self.TextInput.ClearTextOnFocus = false
-    self.TextInput.Parent = self.Frame
-    
-    self:SetupInteractions()
-end
-
-function TextBox:SetupInteractions()
-    self.TextInput.Focused:Connect(function()
-        self.IsFocused = true
-        
-        Animator:Tween(self.Stroke, TweenInfo.new(0.2), {
-            Color = Theme:GetColor("Primary"),
-            Thickness = 2
-        })
-        
-        Animator:Tween(self.Frame, TweenInfo.new(0.2), {BackgroundTransparency = 0.1})
-        Animator:Scale(self.Frame, UDim2.new(
-            self.Size.X.Scale,
-            self.Size.X.Offset + 4,
-            self.Size.Y.Scale,
-            self.Size.Y.Offset + 2
-        ), 0.1)
-    end)
-    
-    self.TextInput.FocusLost:Connect(function()
-        self.IsFocused = false
-        
-        Animator:Tween(self.Stroke, TweenInfo.new(0.2), {
-            Color = Theme:GetColor("Border"),
-            Thickness = 1
-        })
-        
-        Animator:Tween(self.Frame, TweenInfo.new(0.2), {BackgroundTransparency = 0.3})
-        Animator:Scale(self.Frame, self.Size, 0.1)
-        
-        self.Callback(self.TextInput.Text)
-    end)
-end
-
--- ========================================
--- TOGGLE COMPONENT
--- ========================================
-
-local Toggle = {}
-Toggle.__index = Toggle
-
-function Toggle.new(config)
-    local self = setmetatable({}, Toggle)
-    
-    self.Enabled = config.Enabled or false
-    self.Size = config.Size or UDim2.fromOffset(50, 25)
-    self.Position = config.Position or UDim2.fromOffset(0, 0)
-    self.Callback = config.Callback or function() end
-    self.Parent = config.Parent
-    
-    self:CreateToggle()
-    return self
-end
-
-function Toggle:CreateToggle()
-    self.Frame = Instance.new("Frame")
-    self.Frame.Name = "LunaToggle"
-    self.Frame.Size = self.Size
-    self.Frame.Position = self.Position
-    self.Frame.BackgroundColor3 = self.Enabled and Theme:GetColor("Primary") or Theme:GetColor("BackgroundTertiary")
-    self.Frame.BorderSizePixel = 0
-    
-    if self.Parent then
-        self.Frame.Parent = self.Parent
-    end
-    
-    local trackCorner = Instance.new("UICorner")
-    trackCorner.CornerRadius = UDim.new(0.5, 0)
-    trackCorner.Parent = self.Frame
-    
-    local thumbSize = self.Size.Y.Offset - 4
-    self.Thumb = Instance.new("Frame")
-    self.Thumb.Size = UDim2.fromOffset(thumbSize, thumbSize)
-    self.Thumb.Position = self.Enabled and 
-        UDim2.new(1, -thumbSize - 2, 0.5, -thumbSize/2) or 
-        UDim2.fromOffset(2, 2)
-    self.Thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    self.Thumb.BorderSizePixel = 0
-    self.Thumb.Parent = self.Frame
-    
-    local thumbCorner = Instance.new("UICorner")
-    thumbCorner.CornerRadius = UDim.new(0.5, 0)
-    thumbCorner.Parent = self.Thumb
-    
-    self.ClickDetector = Instance.new("TextButton")
-    self.ClickDetector.Size = UDim2.fromScale(1, 1)
-    self.ClickDetector.BackgroundTransparency = 1
-    self.ClickDetector.Text = ""
-    self.ClickDetector.Parent = self.Frame
-    
-    self:SetupInteractions()
-end
-
-function Toggle:SetupInteractions()
-    self.ClickDetector.MouseButton1Click:Connect(function()
-        self:Toggle()
-    end)
-    
-    self.ClickDetector.MouseEnter:Connect(function()
-        local hoverScale = self.Size.Y.Offset + 2
-        Animator:Scale(self.Thumb, UDim2.fromOffset(hoverScale, hoverScale), 0.1)
-    end)
-    
-    self.ClickDetector.MouseLeave:Connect(function()
-        local normalScale = self.Size.Y.Offset - 4
-        Animator:Scale(self.Thumb, UDim2.fromOffset(normalScale, normalScale), 0.1)
-    end)
-end
-
-function Toggle:Toggle()
-    self.Enabled = not self.Enabled
-    
-    local thumbSize = self.Size.Y.Offset - 4
-    local targetPosition = self.Enabled and 
-        UDim2.new(1, -thumbSize - 2, 0.5, -thumbSize/2) or 
-        UDim2.fromOffset(2, 2)
-    
-    local targetColor = self.Enabled and Theme:GetColor("Primary") or Theme:GetColor("BackgroundTertiary")
-    
-    Animator:Tween(self.Thumb, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Position = targetPosition
-    })
-    
-    Animator:Tween(self.Frame, TweenInfo.new(0.2), {BackgroundColor3 = targetColor})
-    Animator:Bounce(self.Thumb, 0.1, 0.4)
-    
-    self.Callback(self.Enabled)
-end
-
--- ========================================
--- NOTIFICATION SYSTEM
--- ========================================
-
-local Notification = {}
-Notification.__index = Notification
-Notification.ActiveNotifications = {}
-Notification.Container = nil
-
-function Notification.new(config)
-    local self = setmetatable({}, Notification)
-    
-    self.Title = config.Title or "Notification"
-    self.Description = config.Description or ""
-    self.Duration = config.Duration or 3
-    self.Type = config.Type or "Info"
-    
-    if not Notification.Container then
-        Notification:CreateContainer()
-    end
-    
-    self:CreateNotification()
-    return self
-end
-
-function Notification:CreateContainer()
-    Notification.Container = Instance.new("Frame")
-    Notification.Container.Name = "NotificationContainer"
-    Notification.Container.Size = UDim2.fromOffset(350, 0)
-    Notification.Container.Position = UDim2.new(1, -360, 0, 10)
-    Notification.Container.BackgroundTransparency = 1
-    Notification.Container.Parent = game.Players.LocalPlayer.PlayerGui
-    
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 10)
-    layout.Parent = Notification.Container
-    
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        Notification.Container.Size = UDim2.fromOffset(350, layout.AbsoluteContentSize.Y)
-    end)
-end
-
-function Notification:CreateNotification()
-    self.Frame = Instance.new("Frame")
-    self.Frame.Size = UDim2.fromOffset(340, 80)
-    self.Frame.BackgroundColor3 = Theme:GetColor("BackgroundSecondary")
-    self.Frame.BackgroundTransparency = 0.1
-    self.Frame.BorderSizePixel = 0
-    self.Frame.LayoutOrder = #Notification.ActiveNotifications + 1
-    self.Frame.Parent = Notification.Container
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = self.Frame
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = self:GetTypeColor()
-    stroke.Thickness = 2
-    stroke.Parent = self.Frame
-    
-    -- Icon
-    self.Icon = Instance.new("TextLabel")
-    self.Icon.Size = UDim2.fromOffset(24, 24)
-    self.Icon.Position = UDim2.fromOffset(20, 12)
-    self.Icon.BackgroundTransparency = 1
-    self.Icon.Text = self:GetTypeIcon()
-    self.Icon.TextColor3 = self:GetTypeColor()
-    self.Icon.TextSize = 18
-    self.Icon.Font = Enum.Font.GothamBold
-    self.Icon.Parent = self.Frame
-    
-    -- Title
-    self.TitleLabel = Instance.new("TextLabel")
-    self.TitleLabel.Size = UDim2.new(1, -80, 0, 20)
-    self.TitleLabel.Position = UDim2.fromOffset(55, 12)
-    self.TitleLabel.BackgroundTransparency = 1
-    self.TitleLabel.Text = self.Title
-    self.TitleLabel.TextColor3 = Theme:GetColor("TextPrimary")
-    self.TitleLabel.TextSize = 14
-    self.TitleLabel.Font = Enum.Font.GothamSemibold
-    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    self.TitleLabel.Parent = self.Frame
-    
-    -- Description
-    if self.Description ~= "" then
-        self.DescriptionLabel = Instance.new("TextLabel")
-        self.DescriptionLabel.Size = UDim2.new(1, -80, 0, 40)
-        self.DescriptionLabel.Position = UDim2.fromOffset(55, 32)
-        self.DescriptionLabel.BackgroundTransparency = 1
-        self.DescriptionLabel.Text = self.Description
-        self.DescriptionLabel.TextColor3 = Theme:GetColor("TextSecondary")
-        self.DescriptionLabel.TextSize = 12
-        self.DescriptionLabel.Font = Enum.Font.Gotham
-        self.DescriptionLabel.TextXAlignment = Enum.TextXAlignment.Left
-        self.DescriptionLabel.TextYAlignment = Enum.TextYAlignment.Top
-        self.DescriptionLabel.TextWrapped = true
-        self.DescriptionLabel.Parent = self.Frame
-    end
-    
-    -- Close button
-    self.CloseButton = Instance.new("TextButton")
-    self.CloseButton.Size = UDim2.fromOffset(20, 20)
-    self.CloseButton.Position = UDim2.new(1, -30, 0, 10)
-    self.CloseButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    self.CloseButton.BackgroundTransparency = 0.9
-    self.CloseButton.BorderSizePixel = 0
-    self.CloseButton.Text = "×"
-    self.CloseButton.TextColor3 = Theme:GetColor("TextSecondary")
-    self.CloseButton.TextSize = 14
-    self.CloseButton.Font = Enum.Font.GothamBold
-    self.CloseButton.Parent = self.Frame
-    
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 10)
-    closeCorner.Parent = self.CloseButton
-    
-    table.insert(Notification.ActiveNotifications, self)
-    
-    self:SetupInteractions()
-    self:AnimateIn()
-    
-    if self.Duration > 0 then
-        spawn(function()
-            wait(self.Duration)
-            self:Dismiss()
-        end)
-    end
-end
-
-function Notification:GetTypeColor()
-    local colors = {
-        Info = Theme:GetColor("Primary"),
-        Success = Theme:GetColor("Success"),
-        Warning = Theme:GetColor("Warning"),
-        Error = Theme:GetColor("Error")
-    }
-    return colors[self.Type] or colors.Info
-end
-
-function Notification:GetTypeIcon()
-    local icons = {
-        Info = "ⓘ",
-        Success = "✓",
-        Warning = "!",
-        Error = "✕"
-    }
-    return icons[self.Type] or icons.Info
-end
-
-function Notification:SetupInteractions()
-    self.CloseButton.MouseButton1Click:Connect(function()
-        self:Dismiss()
-    end)
-end
-
-function Notification:AnimateIn()
-    self.Frame.Position = UDim2.fromOffset(350, 0)
-    self.Frame.BackgroundTransparency = 1
-    
-    Animator:SlideIn(self.Frame, "Right", 0.4)
-    Animator:FadeIn(self.Frame, 0.3)
-end
-
-function Notification:Dismiss()
-    Animator:SlideOut(self.Frame, "Right", 0.3, function()
-        for i, notification in ipairs(Notification.ActiveNotifications) do
-            if notification == self then
-                table.remove(Notification.ActiveNotifications, i)
+        -- Remove from active notifications
+        for i, v in pairs(self.ActiveNotifications) do
+            if v == notification then
+                table.remove(self.ActiveNotifications, i)
                 break
             end
         end
-        self.Frame:Destroy()
     end)
 end
 
--- ========================================
--- WINDOW COMPONENT
--- ========================================
-
-local Window = {}
-Window.__index = Window
-
-function Window.new(config)
-    local self = setmetatable({}, Window)
+-- Create a window
+function Lumina:MakeWindow(options)
+    if not self.Initialized then
+        self:Init()
+    end
     
-    self.Title = config.Title or "LunaUI Window"
-    self.Size = config.Size or UDim2.fromOffset(500, 400)
-    self.Position = config.Position or UDim2.fromScale(0.5, 0.5)
-    self.Parent = config.Parent or game.Players.LocalPlayer.PlayerGui
-    self.Tabs = {}
-    self.ActiveTab = nil
+    -- Default options
+    options = options or {}
+    local name = options.Name or "Lumina Window"
+    local hidePremium = options.HidePremium or false
+    local saveConfig = options.SaveConfig or self.Config.SaveConfig
+    local configFolder = options.ConfigFolder or self.Config.ConfigFolder
+    local introEnabled = options.IntroEnabled or true
+    local introText = options.IntroText or name
+    local introIcon = options.IntroIcon or "rbxassetid://10723424505"
+    local icon = options.Icon or "rbxassetid://10723424505"
+    local closeCallback = options.CloseCallback
     
-    self:CreateWindow()
-    return self
-end
-
-function Window:CreateWindow()
-    self.Frame = Instance.new("Frame")
-    self.Frame.Name = "LunaWindow"
-    self.Frame.Size = self.Size
-    self.Frame.Position = self.Position
-    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    self.Frame.BackgroundColor3 = Theme:GetColor("Background")
-    self.Frame.BackgroundTransparency = 0.1
-    self.Frame.BorderSizePixel = 0
-    self.Frame.Parent = self.Parent
+    -- Create window object
+    local window = {}
+    window.Tabs = {}
+    window.Name = name
+    window.SaveConfig = saveConfig
+    window.ConfigFolder = configFolder
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = self.Frame
+    -- Create window frame
+    local windowFrame = Instance.new("Frame")
+    windowFrame.Name = "WindowFrame"
+    windowFrame.Size = UDim2.new(0, 600, 0, 400)
+    windowFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    windowFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    windowFrame.BackgroundColor3 = self.Config.BackgroundColor
+    windowFrame.BorderSizePixel = 0
+    windowFrame.Parent = self.WindowsContainer
+    windowFrame.Visible = false
     
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Theme:GetColor("Border")
-    stroke.Thickness = 1
-    stroke.Parent = self.Frame
+    -- Create window corner radius
+    local windowCorner = Instance.new("UICorner")
+    windowCorner.CornerRadius = self.Config.WindowCornerRadius
+    windowCorner.Parent = windowFrame
     
-    local shadow = Theme:CreateShadow(15, 0.7)
-    shadow.Parent = self.Frame
+    -- Create window shadow
+    local windowShadow = Instance.new("ImageLabel")
+    windowShadow.Name = "Shadow"
+    windowShadow.BackgroundTransparency = 1
+    windowShadow.Image = "rbxassetid://6014237321"
+    windowShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    windowShadow.ImageTransparency = 0.5
+    windowShadow.Size = UDim2.new(1, 30, 1, 30)
+    windowShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    windowShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    windowShadow.ZIndex = -1
+    windowShadow.Parent = windowFrame
     
-    self:CreateTitleBar()
-    self:CreateContentArea()
-    self:SetupDragging()
+    -- Create title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, 40)
+    titleBar.BackgroundColor3 = self.Config.SecondaryColor
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = windowFrame
     
-    Animator:SlideIn(self.Frame, "Top", 0.5)
-    Animator:FadeIn(self.Frame, 0.3)
-end
-
-function Window:CreateTitleBar()
-    self.TitleBar = Instance.new("Frame")
-    self.TitleBar.Size = UDim2.new(1, 0, 0, 40)
-    self.TitleBar.BackgroundColor3 = Theme:GetColor("BackgroundSecondary")
-    self.TitleBar.BackgroundTransparency = 0.3
-    self.TitleBar.BorderSizePixel = 0
-    self.TitleBar.Parent = self.Frame
+    -- Create title bar corner radius
+    local titleBarCorner = Instance.new("UICorner")
+    titleBarCorner.CornerRadius = self.Config.WindowCornerRadius
+    titleBarCorner.Parent = titleBar
     
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 12)
-    titleCorner.Parent = self.TitleBar
+    -- Create title bar fixer (to prevent corner radius on bottom)
+    local titleBarFixer = Instance.new("Frame")
+    titleBarFixer.Name = "TitleBarFixer"
+    titleBarFixer.Size = UDim2.new(1, 0, 0, 10)
+    titleBarFixer.Position = UDim2.new(0, 0, 1, -10)
+    titleBarFixer.BackgroundColor3 = self.Config.SecondaryColor
+    titleBarFixer.BorderSizePixel = 0
+    titleBarFixer.ZIndex = 0
+    titleBarFixer.Parent = titleBar
     
-    self.TitleLabel = Instance.new("TextLabel")
-    self.TitleLabel.Size = UDim2.new(1, -100, 1, 0)
-    self.TitleLabel.Position = UDim2.fromOffset(15, 0)
-    self.TitleLabel.BackgroundTransparency = 1
-    self.TitleLabel.Text = self.Title
-    self.TitleLabel.TextColor3 = Theme:GetColor("TextPrimary")
-    self.TitleLabel.TextSize = 16
-    self.TitleLabel.Font = Enum.Font.GothamSemibold
-    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    self.TitleLabel.Parent = self.TitleBar
+    -- Create title icon
+    local titleIcon = Instance.new("ImageLabel")
+    titleIcon.Name = "TitleIcon"
+    titleIcon.Size = UDim2.new(0, 20, 0, 20)
+    titleIcon.Position = UDim2.new(0, 10, 0, 10)
+    titleIcon.BackgroundTransparency = 1
+    titleIcon.Image = icon
+    titleIcon.Parent = titleBar
     
-    self.CloseButton = Instance.new("TextButton")
-    self.CloseButton.Size = UDim2.fromOffset(30, 30)
-    self.CloseButton.Position = UDim2.new(1, -40, 0.5, -15)
-    self.CloseButton.BackgroundColor3 = Theme:GetColor("Error")
-    self.CloseButton.BackgroundTransparency = 0.8
-    self.CloseButton.BorderSizePixel = 0
-    self.CloseButton.Text = "×"
-    self.CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    self.CloseButton.TextSize = 18
-    self.CloseButton.Font = Enum.Font.GothamBold
-    self.CloseButton.Parent = self.TitleBar
+    -- Create title text
+    local titleText = Instance.new("TextLabel")
+    titleText.Name = "TitleText"
+    titleText.Size = UDim2.new(1, -100, 1, 0)
+    titleText.Position = UDim2.new(0, 40, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Font = self.Config.Font
+    titleText.TextSize = 18
+    titleText.TextXAlignment = Enum.TextXAlignment.Left
+    titleText.TextColor3 = self.Config.TextColor
+    titleText.Text = name
+    titleText.Parent = titleBar
     
-    local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 15)
-    closeCorner.Parent = self.CloseButton
+    -- Create close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 40, 0, 40)
+    closeButton.Position = UDim2.new(1, -40, 0, 0)
+    closeButton.BackgroundTransparency = 1
+    closeButton.Text = "×"
+    closeButton.TextSize = 24
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    closeButton.Parent = titleBar
     
-    self.CloseButton.MouseEnter:Connect(function()
-        Animator:Tween(self.CloseButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.2})
-    end)
+    -- Create tab container
+    local tabContainer = Instance.new("Frame")
+    tabContainer.Name = "TabContainer"
+    tabContainer.Size = UDim2.new(0, 150, 1, -40)
+    tabContainer.Position = UDim2.new(0, 0, 0, 40)
+    tabContainer.BackgroundColor3 = self.Config.SecondaryColor
+    tabContainer.BorderSizePixel = 0
+    tabContainer.Parent = windowFrame
     
-    self.CloseButton.MouseLeave:Connect(function()
-        Animator:Tween(self.CloseButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.8})
-    end)
+    -- Create tab container corner radius
+    local tabContainerCorner = Instance.new("UICorner")
+    tabContainerCorner.CornerRadius = self.Config.WindowCornerRadius
+    tabContainerCorner.Parent = tabContainer
     
-    self.CloseButton.MouseButton1Click:Connect(function()
-        self:Close()
-    end)
-end
-
-function Window:CreateContentArea()
-    self.ContentArea = Instance.new("ScrollingFrame")
-    self.ContentArea.Size = UDim2.new(1, -20, 1, -60)
-    self.ContentArea.Position = UDim2.fromOffset(10, 50)
-    self.ContentArea.BackgroundTransparency = 1
-    self.ContentArea.BorderSizePixel = 0
-    self.ContentArea.ScrollBarThickness = 4
-    self.ContentArea.ScrollBarImageColor3 = Theme:GetColor("Primary")
-    self.ContentArea.Parent = self.Frame
+    -- Create tab container fixer (to prevent corner radius on right)
+    local tabContainerFixer = Instance.new("Frame")
+    tabContainerFixer.Name = "TabContainerFixer"
+    tabContainerFixer.Size = UDim2.new(0, 10, 1, 0)
+    tabContainerFixer.Position = UDim2.new(1, -10, 0, 0)
+    tabContainerFixer.BackgroundColor3 = self.Config.SecondaryColor
+    tabContainerFixer.BorderSizePixel = 0
+    tabContainerFixer.ZIndex = 0
+    tabContainerFixer.Parent = tabContainer
     
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 10)
-    layout.Parent = self.ContentArea
+    -- Create tab list
+    local tabList = Instance.new("ScrollingFrame")
+    tabList.Name = "TabList"
+    tabList.Size = UDim2.new(1, -10, 1, -10)
+    tabList.Position = UDim2.new(0, 5, 0, 5)
+    tabList.BackgroundTransparency = 1
+    tabList.ScrollBarThickness = 0
+    tabList.ScrollingDirection = Enum.ScrollingDirection.Y
+    tabList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    tabList.Parent = tabContainer
     
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        self.ContentArea.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y)
-    end)
-end
-
-function Window:SetupDragging()
+    -- Create tab list layout
+    local tabListLayout = Instance.new("UIListLayout")
+    tabListLayout.Name = "TabListLayout"
+    tabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    tabListLayout.Padding = UDim.new(0, 5)
+    tabListLayout.Parent = tabList
+    
+    -- Create tab content container
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Name = "ContentContainer"
+    contentContainer.Size = UDim2.new(1, -150, 1, -40)
+    contentContainer.Position = UDim2.new(0, 150, 0, 40)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.BorderSizePixel = 0
+    contentContainer.Parent = windowFrame
+    
+    -- Make window draggable
     local dragging = false
-    local dragStart = nil
-    local startPos = nil
+    local dragInput
+    local dragStart
+    local startPos
     
-    self.TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
-            startPos = self.Frame.Position
+            startPos = windowFrame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    titleBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            self.Frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
+            windowFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
     
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
+    -- Close button click
+    closeButton.MouseButton1Click:Connect(function()
+        windowFrame.Visible = false
+        if closeCallback then
+            closeCallback()
         end
     end)
-end
-
-function Window:AddElement(element)
-    if element.Frame then
-        element.Frame.Parent = self.ContentArea
+    
+    -- Store references
+    window.Frame = windowFrame
+    window.TabList = tabList
+    window.ContentContainer = contentContainer
+    
+    -- Add to windows
+    table.insert(self.Windows, window)
+    
+    -- Show intro
+    if introEnabled then
+        windowFrame.Visible = false
+        self:Notify({
+            Title = "Welcome",
+            Content = introText,
+            Icon = introIcon,
+            Duration = 3,
+            Theme = "Default",
+            Callback = function()
+                windowFrame.Visible = true
+            end
+        })
     else
-        element.Parent = self.ContentArea
+        windowFrame.Visible = true
+    end
+    
+    -- Window methods
+    function window:MakeTab(options)
+        options = options or {}
+        local tabName = options.Name or "Tab"
+        local tabIcon = options.Icon or "rbxassetid://10734983707"
+        local premiumOnly = options.PremiumOnly or false
+        
+        -- Create tab object
+        local tab = {}
+        tab.Name = tabName
+        tab.Items = {}
+        
+        -- Create tab button
+        local tabButton = Instance.new("TextButton")
+        tabButton.Name = tabName .. "Button"
+        tabButton.Size = UDim2.new(1, 0, 0, 40)
+        tabButton.BackgroundColor3 = Lumina.Config.SecondaryColor
+        tabButton.BorderSizePixel = 0
+        tabButton.Text = ""
+        tabButton.AutoButtonColor = false
+        tabButton.Parent = tabList
+        
+        -- Create tab button corner radius
+        local tabButtonCorner = Instance.new("UICorner")
+        tabButtonCorner.CornerRadius = UDim.new(0, 4)
+        tabButtonCorner.Parent = tabButton
+        
+        -- Create tab icon
+        local tabIconLabel = Instance.new("ImageLabel")
+        tabIconLabel.Name = "Icon"
+        tabIconLabel.Size = UDim2.new(0, 20, 0, 20)
+        tabIconLabel.Position = UDim2.new(0, 10, 0.5, -10)
+        tabIconLabel.BackgroundTransparency = 1
+        tabIconLabel.Image = tabIcon
+        tabIconLabel.Parent = tabButton
+        
+        -- Create tab text
+        local tabTextLabel = Instance.new("TextLabel")
+        tabTextLabel.Name = "Text"
+        tabTextLabel.Size = UDim2.new(1, -40, 1, 0)
+        tabTextLabel.Position = UDim2.new(0, 40, 0, 0)
+        tabTextLabel.BackgroundTransparency = 1
+        tabTextLabel.Font = Lumina.Config.Font
+        tabTextLabel.TextSize = 16
+        tabTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        tabTextLabel.TextColor3 = Lumina.Config.TextColor
+        tabTextLabel.Text = tabName
+        tabTextLabel.Parent = tabButton
+        
+        -- Create selection indicator
+        local selectionIndicator = Instance.new("Frame")
+        selectionIndicator.Name = "SelectionIndicator"
+        selectionIndicator.Size = UDim2.new(0, 4, 0, 24)
+        selectionIndicator.Position = UDim2.new(0, 0, 0.5, -12)
+        selectionIndicator.BackgroundColor3 = Lumina.Config.PrimaryColor
+        selectionIndicator.BorderSizePixel = 0
+        selectionIndicator.Visible = false
+        selectionIndicator.Parent = tabButton
+        
+        -- Create tab content frame
+        local tabContent = Instance.new("ScrollingFrame")
+        tabContent.Name = tabName .. "Content"
+        tabContent.Size = UDim2.new(1, -20, 1, -20)
+        tabContent.Position = UDim2.new(0, 10, 0, 10)
+        tabContent.BackgroundTransparency = 1
+        tabContent.BorderSizePixel = 0
+        tabContent.ScrollBarThickness = 4
+        tabContent.ScrollingDirection = Enum.ScrollingDirection.Y
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+        tabContent.Visible = false
+        tabContent.Parent = contentContainer
+        
+        -- Create content layout
+        local contentLayout = Instance.new("UIListLayout")
+        contentLayout.Name = "ContentLayout"
+        contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        contentLayout.Padding = UDim.new(0, 10)
+        contentLayout.Parent = tabContent
+        
+        -- Create content padding
+        local contentPadding = Instance.new("UIPadding")
+        contentPadding.Name = "ContentPadding"
+        contentPadding.PaddingTop = UDim.new(0, 5)
+        contentPadding.PaddingBottom = UDim.new(0, 5)
+        contentPadding.PaddingLeft = UDim.new(0, 5)
+        contentPadding.PaddingRight = UDim.new(0, 5)
+        contentPadding.Parent = tabContent
+        
+        -- Update canvas size when items are added
+        contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            tabContent.CanvasSize = UDim2.new(0, 0, 0, contentLayout.AbsoluteContentSize.Y + 10)
+        end)
+        
+        -- Tab button click
+        tabButton.MouseButton1Click:Connect(function()
+            -- Hide all tabs
+            for _, otherTab in pairs(window.Tabs) do
+                if otherTab.Content then
+                    otherTab.Content.Visible = false
+                end
+                if otherTab.Button and otherTab.Button:FindFirstChild("SelectionIndicator") then
+                    otherTab.Button.SelectionIndicator.Visible = false
+                    
+                    -- Reset unselected tab button appearance
+                    TweenService:Create(
+                        otherTab.Button,
+                        TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                        {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                    ):Play()
+                end
+            end
+            
+            -- Show this tab
+            tabContent.Visible = true
+            selectionIndicator.Visible = true
+            
+            -- Animate selection
+            TweenService:Create(
+                tabButton,
+                TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                {BackgroundColor3 = Lumina.Config.PrimaryColor:Lerp(Lumina.Config.SecondaryColor, 0.8)}
+            ):Play()
+        end)
+        
+        -- Hover effects
+        tabButton.MouseEnter:Connect(function()
+            if not selectionIndicator.Visible then
+                TweenService:Create(
+                    tabButton,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor:Lerp(Lumina.Config.PrimaryColor, 0.2)}
+                ):Play()
+            end
+        end)
+        
+        tabButton.MouseLeave:Connect(function()
+            if not selectionIndicator.Visible then
+                TweenService:Create(
+                    tabButton,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                ):Play()
+            end
+        end)
+        
+        -- Store references
+        tab.Button = tabButton
+        tab.Content = tabContent
+        
+        -- Add to tabs
+        table.insert(window.Tabs, tab)
+        
+        -- If this is the first tab, select it
+        if #window.Tabs == 1 then
+            tabButton.MouseButton1Click:Fire()
+        end
+        
+        -- Tab methods
+        function tab:AddSection(options)
+            options = options or {}
+            local sectionName = options.Name or "Section"
+            
+            -- Create section object
+            local section = {}
+            
+            -- Create section frame
+            local sectionFrame = Instance.new("Frame")
+            sectionFrame.Name = sectionName .. "Section"
+            sectionFrame.Size = UDim2.new(1, 0, 0, 36) -- Initial height, will be resized
+            sectionFrame.BackgroundColor3 = Lumina.Config.SecondaryColor
+            sectionFrame.BorderSizePixel = 0
+            sectionFrame.Parent = tabContent
+            
+            -- Create section corner radius
+            local sectionCorner = Instance.new("UICorner")
+            sectionCorner.CornerRadius = UDim.new(0, 4)
+            sectionCorner.Parent = sectionFrame
+            
+            -- Create section title
+            local sectionTitle = Instance.new("TextLabel")
+            sectionTitle.Name = "Title"
+            sectionTitle.Size = UDim2.new(1, -20, 0, 26)
+            sectionTitle.Position = UDim2.new(0, 10, 0, 5)
+            sectionTitle.BackgroundTransparency = 1
+            sectionTitle.Font = Lumina.Config.Font
+            sectionTitle.TextSize = 15
+            sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+            sectionTitle.TextColor3 = Lumina.Config.TextColor
+            sectionTitle.Text = sectionName
+            sectionTitle.Parent = sectionFrame
+            
+            -- Create content container
+            local sectionContent = Instance.new("Frame")
+            sectionContent.Name = "Content"
+            sectionContent.Size = UDim2.new(1, -20, 0, 0) -- Will be resized
+            sectionContent.Position = UDim2.new(0, 10, 0, 36)
+            sectionContent.BackgroundTransparency = 1
+            sectionContent.BorderSizePixel = 0
+            sectionContent.Parent = sectionFrame
+            
+            -- Create content layout
+            local sectionLayout = Instance.new("UIListLayout")
+            sectionLayout.Name = "SectionLayout"
+            sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            sectionLayout.Padding = UDim.new(0, 8)
+            sectionLayout.Parent = sectionContent
+            
+            -- Update section size when content is added
+            sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                sectionContent.Size = UDim2.new(1, -20, 0, sectionLayout.AbsoluteContentSize.Y)
+                sectionFrame.Size = UDim2.new(1, 0, 0, sectionLayout.AbsoluteContentSize.Y + 46)
+            end)
+            
+            -- Store references
+            section.Frame = sectionFrame
+            section.Content = sectionContent
+            
+            -- Return the section with element adding methods
+            return section
+        end
+        
+        -- Element creation methods
+        function tab:AddButton(options)
+            options = options or {}
+            local buttonName = options.Name or "Button"
+            local callback = options.Callback or function() end
+            
+            -- Create button frame
+            local buttonFrame = Instance.new("Frame")
+            buttonFrame.Name = buttonName .. "ButtonFrame"
+            buttonFrame.Size = UDim2.new(1, 0, 0, 36)
+            buttonFrame.BackgroundTransparency = 1
+            buttonFrame.Parent = tabContent
+            
+            -- Create button
+            local button = Instance.new("TextButton")
+            button.Name = "Button"
+            button.Size = UDim2.new(1, 0, 1, 0)
+            button.BackgroundColor3 = Lumina.Config.SecondaryColor
+            button.BorderSizePixel = 0
+            button.Text = ""
+            button.AutoButtonColor = false
+            button.Parent = buttonFrame
+            
+            -- Create button corner radius
+            local buttonCorner = Instance.new("UICorner")
+            buttonCorner.CornerRadius = UDim.new(0, 4)
+            buttonCorner.Parent = button
+            
+            -- Create button text
+            local buttonText = Instance.new("TextLabel")
+            buttonText.Name = "Text"
+            buttonText.Size = UDim2.new(1, -20, 1, 0)
+            buttonText.Position = UDim2.new(0, 10, 0, 0)
+            buttonText.BackgroundTransparency = 1
+            buttonText.Font = Lumina.Config.Font
+            buttonText.TextSize = 15
+            buttonText.TextXAlignment = Enum.TextXAlignment.Left
+            buttonText.TextColor3 = Lumina.Config.TextColor
+            buttonText.Text = buttonName
+            buttonText.Parent = button
+            
+            -- Create button icon
+            local buttonIcon = Instance.new("ImageLabel")
+            buttonIcon.Name = "Icon"
+            buttonIcon.Size = UDim2.new(0, 20, 0, 20)
+            buttonIcon.Position = UDim2.new(1, -30, 0.5, -10)
+            buttonIcon.BackgroundTransparency = 1
+            buttonIcon.Image = "rbxassetid://10734898835" -- Arrow icon
+            buttonIcon.Parent = button
+            
+            -- Button click
+            button.MouseButton1Click:Connect(function()
+                -- Animation
+                TweenService:Create(
+                    button,
+                    TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.PrimaryColor}
+                ):Play()
+                
+                TweenService:Create(
+                    buttonIcon,
+                    TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                    {Position = UDim2.new(1, -25, 0.5, -10)}
+                ):Play()
+                
+                task.delay(0.1, function()
+                    TweenService:Create(
+                        button,
+                        TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                        {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                    ):Play()
+                    
+                    TweenService:Create(
+                        buttonIcon,
+                        TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                        {Position = UDim2.new(1, -30, 0.5, -10)}
+                    ):Play()
+                end)
+                
+                -- Callback
+                callback()
+            end)
+            
+            -- Hover effects
+            button.MouseEnter:Connect(function()
+                TweenService:Create(
+                    button,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor:Lerp(Lumina.Config.PrimaryColor, 0.2)}
+                ):Play()
+            end)
+            
+            button.MouseLeave:Connect(function()
+                TweenService:Create(
+                    button,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                ):Play()
+            end)
+            
+            return buttonFrame
+        end
+        
+        function tab:AddToggle(options)
+            options = options or {}
+            local toggleName = options.Name or "Toggle"
+            local defaultValue = options.Default or false
+            local callback = options.Callback or function() end
+            local flag = options.Flag
+            local save = options.Save or false
+            
+            -- Create toggle object
+            local toggle = {}
+            toggle.Value = defaultValue
+            
+            -- Create toggle frame
+            local toggleFrame = Instance.new("Frame")
+            toggleFrame.Name = toggleName .. "ToggleFrame"
+            toggleFrame.Size = UDim2.new(1, 0, 0, 36)
+            toggleFrame.BackgroundTransparency = 1
+            toggleFrame.Parent = tabContent
+            
+            -- Create toggle background
+            local toggleBackground = Instance.new("TextButton")
+            toggleBackground.Name = "Background"
+            toggleBackground.Size = UDim2.new(1, 0, 1, 0)
+            toggleBackground.BackgroundColor3 = Lumina.Config.SecondaryColor
+            toggleBackground.BorderSizePixel = 0
+            toggleBackground.Text = ""
+            toggleBackground.AutoButtonColor = false
+            toggleBackground.Parent = toggleFrame
+            
+            -- Create toggle corner radius
+            local toggleCorner = Instance.new("UICorner")
+            toggleCorner.CornerRadius = UDim.new(0, 4)
+            toggleCorner.Parent = toggleBackground
+            
+            -- Create toggle text
+            local toggleText = Instance.new("TextLabel")
+            toggleText.Name = "Text"
+            toggleText.Size = UDim2.new(1, -60, 1, 0)
+            toggleText.Position = UDim2.new(0, 10, 0, 0)
+            toggleText.BackgroundTransparency = 1
+            toggleText.Font = Lumina.Config.Font
+            toggleText.TextSize = 15
+            toggleText.TextXAlignment = Enum.TextXAlignment.Left
+            toggleText.TextColor3 = Lumina.Config.TextColor
+            toggleText.Text = toggleName
+            toggleText.Parent = toggleBackground
+            
+            -- Create toggle indicator
+            local toggleIndicator = Instance.new("Frame")
+            toggleIndicator.Name = "Indicator"
+            toggleIndicator.Size = UDim2.new(0, 40, 0, 22)
+            toggleIndicator.Position = UDim2.new(1, -50, 0.5, -11)
+            toggleIndicator.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+            toggleIndicator.BorderSizePixel = 0
+            toggleIndicator.Parent = toggleBackground
+            
+            -- Create indicator corner radius
+            local indicatorCorner = Instance.new("UICorner")
+            indicatorCorner.CornerRadius = UDim.new(1, 0)
+            indicatorCorner.Parent = toggleIndicator
+            
+            -- Create toggle knob
+            local toggleKnob = Instance.new("Frame")
+            toggleKnob.Name = "Knob"
+            toggleKnob.Size = UDim2.new(0, 18, 0, 18)
+            toggleKnob.Position = UDim2.new(0, 2, 0.5, -9)
+            toggleKnob.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+            toggleKnob.BorderSizePixel = 0
+            toggleKnob.Parent = toggleIndicator
+            
+            -- Create knob corner radius
+            local knobCorner = Instance.new("UICorner")
+            knobCorner.CornerRadius = UDim.new(1, 0)
+            knobCorner.Parent = toggleKnob
+            
+            -- Function to update toggle state
+            local function updateToggle()
+                local toggleTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad)
+                
+                if toggle.Value then
+                    -- Enabled state
+                    TweenService:Create(
+                        toggleIndicator,
+                        toggleTweenInfo,
+                        {BackgroundColor3 = Lumina.Config.PrimaryColor}
+                    ):Play()
+                    
+                    TweenService:Create(
+                        toggleKnob,
+                        toggleTweenInfo,
+                        {Position = UDim2.new(0, 20, 0.5, -9)}
+                    ):Play()
+                else
+                    -- Disabled state
+                    TweenService:Create(
+                        toggleIndicator,
+                        toggleTweenInfo,
+                        {BackgroundColor3 = Color3.fromRGB(50, 50, 55)}
+                    ):Play()
+                    
+                    TweenService:Create(
+                        toggleKnob,
+                        toggleTweenInfo,
+                        {Position = UDim2.new(0, 2, 0.5, -9)}
+                    ):Play()
+                end
+                
+                -- Update flag
+                if flag then
+                    Lumina.Flags[flag] = toggle.Value
+                end
+                
+                -- Call callback
+                callback(toggle.Value)
+            end
+            
+            -- Set initial state
+            toggle.Value = defaultValue
+            updateToggle()
+            
+            -- Toggle click
+            toggleBackground.MouseButton1Click:Connect(function()
+                toggle.Value = not toggle.Value
+                updateToggle()
+            end)
+            
+            -- Hover effects
+            toggleBackground.MouseEnter:Connect(function()
+                TweenService:Create(
+                    toggleBackground,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor:Lerp(Lumina.Config.PrimaryColor, 0.2)}
+                ):Play()
+            end)
+            
+            toggleBackground.MouseLeave:Connect(function()
+                TweenService:Create(
+                    toggleBackground,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                ):Play()
+            end)
+            
+            -- Set method
+            function toggle:Set(value)
+                toggle.Value = value
+                updateToggle()
+            end
+            
+            -- Add to flags if needed
+            if flag then
+                Lumina.Flags[flag] = toggle.Value
+            end
+            
+            return toggle
+        end
+        
+        function tab:AddSlider(options)
+            options = options or {}
+            local sliderName = options.Name or "Slider"
+            local minValue = options.Min or 0
+            local maxValue = options.Max or 100
+            local defaultValue = options.Default or minValue
+            local increment = options.Increment or 1
+            local valueName = options.ValueName or ""
+            local callback = options.Callback or function() end
+            local flag = options.Flag
+            local save = options.Save or false
+            
+            -- Ensure default is within range
+            defaultValue = math.clamp(defaultValue, minValue, maxValue)
+            
+            -- Create slider object
+            local slider = {}
+            slider.Value = defaultValue
+            
+            -- Create slider frame
+            local sliderFrame = Instance.new("Frame")
+            sliderFrame.Name = sliderName .. "SliderFrame"
+            sliderFrame.Size = UDim2.new(1, 0, 0, 56)
+            sliderFrame.BackgroundTransparency = 1
+            sliderFrame.Parent = tabContent
+            
+            -- Create slider background
+            local sliderBackground = Instance.new("Frame")
+            sliderBackground.Name = "Background"
+            sliderBackground.Size = UDim2.new(1, 0, 1, 0)
+            sliderBackground.BackgroundColor3 = Lumina.Config.SecondaryColor
+            sliderBackground.BorderSizePixel = 0
+            sliderBackground.Parent = sliderFrame
+            
+            -- Create slider corner radius
+            local sliderCorner = Instance.new("UICorner")
+            sliderCorner.CornerRadius = UDim.new(0, 4)
+            sliderCorner.Parent = sliderBackground
+            
+            -- Create slider text
+            local sliderText = Instance.new("TextLabel")
+            sliderText.Name = "Text"
+            sliderText.Size = UDim2.new(1, -20, 0, 24)
+            sliderText.Position = UDim2.new(0, 10, 0, 6)
+            sliderText.BackgroundTransparency = 1
+            sliderText.Font = Lumina.Config.Font
+            sliderText.TextSize = 15
+            sliderText.TextXAlignment = Enum.TextXAlignment.Left
+            sliderText.TextColor3 = Lumina.Config.TextColor
+            sliderText.Text = sliderName
+            sliderText.Parent = sliderBackground
+            
+            -- Create value text
+            local valueText = Instance.new("TextLabel")
+            valueText.Name = "ValueText"
+            valueText.Size = UDim2.new(0, 70, 0, 24)
+            valueText.Position = UDim2.new(1, -80, 0, 6)
+            valueText.BackgroundTransparency = 1
+            valueText.Font = Lumina.Config.Font
+            valueText.TextSize = 15
+            valueText.TextXAlignment = Enum.TextXAlignment.Right
+            valueText.TextColor3 = Lumina.Config.PrimaryColor
+            valueText.Text = tostring(defaultValue) .. " " .. valueName
+            valueText.Parent = sliderBackground
+            
+            -- Create slider bar background
+            local sliderBarBackground = Instance.new("Frame")
+            sliderBarBackground.Name = "SliderBarBackground"
+            sliderBarBackground.Size = UDim2.new(1, -20, 0, 6)
+            sliderBarBackground.Position = UDim2.new(0, 10, 0, 36)
+            sliderBarBackground.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+            sliderBarBackground.BorderSizePixel = 0
+            sliderBarBackground.Parent = sliderBackground
+            
+            -- Create slider bar background corner radius
+            local sliderBarBackgroundCorner = Instance.new("UICorner")
+            sliderBarBackgroundCorner.CornerRadius = UDim.new(1, 0)
+            sliderBarBackgroundCorner.Parent = sliderBarBackground
+            
+            -- Create slider bar
+            local sliderBar = Instance.new("Frame")
+            sliderBar.Name = "SliderBar"
+            sliderBar.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
+            sliderBar.BackgroundColor3 = Lumina.Config.PrimaryColor
+            sliderBar.BorderSizePixel = 0
+            sliderBar.Parent = sliderBarBackground
+            
+            -- Create slider bar corner radius
+            local sliderBarCorner = Instance.new("UICorner")
+            sliderBarCorner.CornerRadius = UDim.new(1, 0)
+            sliderBarCorner.Parent = sliderBar
+            
+            -- Create slider knob
+            local sliderKnob = Instance.new("Frame")
+            sliderKnob.Name = "SliderKnob"
+            sliderKnob.Size = UDim2.new(0, 12, 0, 12)
+            sliderKnob.Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 0.5, -6)
+            sliderKnob.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+            sliderKnob.BorderSizePixel = 0
+            sliderKnob.Parent = sliderBarBackground
+            
+            -- Create slider knob corner radius
+            local sliderKnobCorner = Instance.new("UICorner")
+            sliderKnobCorner.CornerRadius = UDim.new(1, 0)
+            sliderKnobCorner.Parent = sliderKnob
+            
+            -- Function to update slider
+            local function updateSlider(value)
+                -- Round to increment
+                value = math.floor((value - minValue) / increment + 0.5) * increment + minValue
+                
+                -- Clamp value
+                value = math.clamp(value, minValue, maxValue)
+                
+                -- Update value
+                slider.Value = value
+                
+                -- Update UI
+                local percent = (value - minValue) / (maxValue - minValue)
+                
+                TweenService:Create(
+                    sliderBar,
+                    TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                    {Size = UDim2.new(percent, 0, 1, 0)}
+                ):Play()
+                
+                TweenService:Create(
+                    sliderKnob,
+                    TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+                    {Position = UDim2.new(percent, 0, 0.5, -6)}
+                ):Play()
+                
+                valueText.Text = tostring(value) .. " " .. valueName
+                
+                -- Update flag
+                if flag then
+                    Lumina.Flags[flag] = value
+                end
+                
+                -- Call callback
+                callback(value)
+            end
+            
+            -- Set initial value
+            updateSlider(defaultValue)
+            
+            -- Slider functionality
+            local dragging = false
+            
+            sliderBarBackground.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    
+                    -- Calculate value based on mouse position
+                    local offsetX = math.clamp(input.Position.X - sliderBarBackground.AbsolutePosition.X, 0, sliderBarBackground.AbsoluteSize.X)
+                    local percent = offsetX / sliderBarBackground.AbsoluteSize.X
+                    local value = minValue + (maxValue - minValue) * percent
+                    
+                    updateSlider(value)
+                end
+            end)
+            
+            sliderKnob.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                end
+            end)
+            
+            UserInputService.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = false
+                end
+            end)
+            
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    -- Calculate value based on mouse position
+                    local offsetX = math.clamp(input.Position.X - sliderBarBackground.AbsolutePosition.X, 0, sliderBarBackground.AbsoluteSize.X)
+                    local percent = offsetX / sliderBarBackground.AbsoluteSize.X
+                    local value = minValue + (maxValue - minValue) * percent
+                    
+                    updateSlider(value)
+                end
+            end)
+            
+            -- Hover effects
+            sliderBackground.MouseEnter:Connect(function()
+                TweenService:Create(
+                    sliderBackground,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor:Lerp(Lumina.Config.PrimaryColor, 0.1)}
+                ):Play()
+            end)
+            
+            sliderBackground.MouseLeave:Connect(function()
+                TweenService:Create(
+                    sliderBackground,
+                    TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+                    {BackgroundColor3 = Lumina.Config.SecondaryColor}
+                ):Play()
+            end)
+            
+            -- Set method
+            function slider:Set(value)
+                updateSlider(value)
+            end
+            
+            -- Add to flags if needed
+            if flag then
+                Lumina.Flags[flag] = slider.Value
+            end
+            
+            return slider
+        end
+        
+        -- Add more element methods as needed
+        
+        return tab
+    end
+    
+    return window
+end
+
+-- Destroy the library
+function Lumina:Destroy()
+    if self.GUI then
+        self.GUI:Destroy()
+        self.Initialized = false
     end
 end
 
-function Window:Close()
-    Animator:SlideOut(self.Frame, "Top", 0.3, function()
-        self.Frame:Destroy()
-    end)
-    Animator:FadeOut(self.Frame, 0.3)
-end
-
--- ========================================
--- MAIN LUNAUI FUNCTIONS
--- ========================================
-
-function LunaUI:Init(parent)
-    parent = parent or game.Players.LocalPlayer.PlayerGui
-    
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "LunaUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.IgnoreGuiInset = true
-    screenGui.Parent = parent
-    
-    return screenGui
-end
-
-function LunaUI:CreateWindow(config)
-    return Window.new(config)
-end
-
-function LunaUI:CreateButton(config)
-    return Button.new(config)
-end
-
-function LunaUI:CreateSlider(config)
-    return Slider.new(config)
-end
-
-function LunaUI:CreateTextBox(config)
-    return TextBox.new(config)
-end
-
-function LunaUI:CreateToggle(config)
-    return Toggle.new(config)
-end
-
-function LunaUI:CreateNotification(config)
-    return Notification.new(config)
-end
-
-function LunaUI:SetTheme(themeName)
-    if Theme[themeName] then
-        Theme.Current = themeName
-    end
-end
-
-function LunaUI:GetTheme()
-    return Theme.Current
-end
-
--- Components für direkten Zugriff
-LunaUI.Button = Button
-LunaUI.Slider = Slider
-LunaUI.TextBox = TextBox
-LunaUI.Toggle = Toggle
-LunaUI.Window = Window
-LunaUI.Notification = Notification
-
-return LunaUI
+return Lumina
